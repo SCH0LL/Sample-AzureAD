@@ -1,13 +1,19 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { HTTP_INTERCEPTORS, HttpClientModule } from "@angular/common/http";
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
 import { HomeComponent } from './home/home.component';
 import { ProfileComponent } from './profile/profile.component';
 
-import { MsalModule } from '@azure/msal-angular';
-import { PublicClientApplication } from '@azure/msal-browser';
+import { MsalModule, MsalGuard, MsalRedirectComponent, MsalInterceptor } from '@azure/msal-angular';
+import { InteractionType, PublicClientApplication } from '@azure/msal-browser';
+
+import { MatButtonModule } from '@angular/material/button';
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatListModule } from '@angular/material/list';
 
 const isIE = window.navigator.userAgent.indexOf('MSIE ') > -1 || window.navigator.userAgent.indexOf('Trident/') > -1;
 
@@ -19,7 +25,12 @@ const isIE = window.navigator.userAgent.indexOf('MSIE ') > -1 || window.navigato
   ],
   imports: [
     BrowserModule,
+    BrowserAnimationsModule,
     AppRoutingModule,
+    MatButtonModule,
+    MatToolbarModule,
+    MatListModule,
+    HttpClientModule,
     MsalModule.forRoot(new PublicClientApplication({
       auth: {
         clientId: '19181d06-e13d-40f4-9b73-13d85d38e441',
@@ -30,9 +41,24 @@ const isIE = window.navigator.userAgent.indexOf('MSIE ') > -1 || window.navigato
         cacheLocation: 'LocalStorage',
         storeAuthStateInCookie: isIE,
       }
-    }), null, null)
+    }), {
+      interactionType: InteractionType.Popup,
+      authRequest: {scopes: ['user.read']}
+    }, {
+      interactionType: InteractionType.Popup,
+      protectedResourceMap: new Map([
+        ['https://graph.microsoft.com/v1.0/me', ['user.read']]
+      ])
+    })
   ],
-  providers: [],
-  bootstrap: [AppComponent]
+  providers: [
+    {
+      provide: HTTP_INTERCEPTORS,
+      useClass: MsalInterceptor,
+      multi: true
+    },
+    MsalGuard,
+  ],
+  bootstrap: [AppComponent, MsalRedirectComponent]
 })
 export class AppModule { }
